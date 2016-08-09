@@ -53,9 +53,16 @@ typedef struct
   gchar *vhost;
   gchar *host;
   gint port;
-
+  
+  amqp_sasl_method_enum auth_method;
+  
   gchar *user;
   gchar *password;
+
+  gchar *ssl_client_cert_path;
+  gchar *ssl_client_key_path;
+  gchar *ssl_ca_cert_path;
+  gboolean ssl_verify;
 
   LogTemplateOptions template_options;
   ValuePairs *vp;
@@ -87,6 +94,41 @@ afamqp_dd_set_password(LogDriver *d, const gchar *password)
 
   g_free(self->password);
   self->password = g_strdup(password);
+}
+
+void
+afamqp_dd_set_ssl_client_cert(LogDriver *d, const gchar *cert_path)
+{
+  AMQPDestDriver *self = (AMQPDestDriver *) d;
+
+  g_free(self->ssl_client_cert_path);
+  self->ssl_client_cert_path = g_strdup(cert_path);
+}
+
+void
+afamqp_dd_set_ssl_client_key(LogDriver *d, const gchar *key_path)
+{
+  AMQPDestDriver *self = (AMQPDestDriver *) d;
+
+  g_free(self->ssl_client_key_path);
+  self->ssl_client_key_path = g_strdup(key_path);
+}
+
+void
+afamqp_dd_set_ssl_ca_cert(LogDriver *d, const gchar *cert_path)
+{
+  AMQPDestDriver *self = (AMQPDestDriver *) d;
+
+  g_free(self->ssl_ca_cert_path);
+  self->ssl_ca_cert_path = g_strdup(cert_path);
+}
+
+void
+afamqp_dd_set_ssl_verify(LogDriver *d, gboolean verify)
+{
+  AMQPDestDriver *self = (AMQPDestDriver *) d;
+
+  self->ssl_verify = verify;
 }
 
 void
