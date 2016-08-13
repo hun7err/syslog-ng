@@ -36,6 +36,7 @@
 #include <amqp.h>
 #include <amqp_framing.h>
 #include <amqp_tcp_socket.h>
+#include <amqp_ssl_socket.h>
 
 typedef struct
 {
@@ -384,11 +385,28 @@ afamqp_dd_connect(AMQPDestDriver *self, gboolean reconnect)
       msg_error("Error allocating AMQP connection.");
       goto exception_amqp_dd_connect_failed_init;
     }
-
-  self->sockfd = amqp_tcp_socket_new(self->conn);
+  
   struct timeval delay;
   delay.tv_sec = 1;
   delay.tv_usec = 0;
+  
+  if (self->auth_method == AMQP_SASL_METHOD_PLAIN)
+    {
+      self->sockfd = amqp_tcp_socket_new(self->conn);
+    }
+  else
+    {
+      self->sockfd = amqp_ssl_socket_new(self->conn);
+      amqp_ssl_socket_set_cacert(self->sockfd, self->ssl_ca_cert_path);
+      amqp_ssl_socket_set_key(self->sockfd,
+                              self->ssl_client_cert_path,
+                              self->ssl_client_key_path);
+      amqp_ssl_socket_set_verify_peer(self->sockfd, self->ssl_verify);
+      amqp_ssl_socket_set_verify_hostname(self->sockfd, self->ssl_verify);
+      // TODO: change to verify_peer and verify_hostname
+      // TODO: change ssl-verify and stuff to pure verify-peer() etc.
+    }
+
   sockfd_ret = amqp_socket_open_noblock(self->sockfd, self->host, self->port, &delay);
 
   if (sockfd_ret != AMQP_STATUS_OK)
@@ -401,8 +419,9 @@ afamqp_dd_connect(AMQPDestDriver *self, gboolean reconnect)
       goto exception_amqp_dd_connect_failed_init;
     }
 
+  printf("AUTH_METHOD = %d\n", (int)self->auth_method);
   ret = amqp_login(self->conn, self->vhost, 0, 131072, 0,
-                   AMQP_SASL_METHOD_PLAIN, self->user, self->password);
+                   self->auth_method, self->user, self->password);
   if (!afamqp_is_ok(self, "Error during AMQP login", ret))
     {
       goto exception_amqp_dd_connect_failed_init;
@@ -572,13 +591,18 @@ afamqp_dd_init(LogPipe *s)
   if (!log_dest_driver_init_method(s))
     return FALSE;
 
-  if (!self->user || !self->password)
+  if (self->auth_method == AMQP_SASL_METHOD_PLAIN && (!self->user || !self->password))
     {
-      msg_error("Error initializing AMQP destination: username and password MUST be set!",
+      msg_error("Error initializing AMQP destination: username and password MUST be set if you are not using certificates!",
                 evt_tag_str("driver", self->super.super.super.id));
       return FALSE;
     }
-
+  
+  if (!self->ssl_ca_cert_path || !self->ssl_client_key_path || !self->ssl_client_cert_path)
+    self->auth_method = AMQP_SASL_METHOD_PLAIN;
+  else
+    self->auth_method = AMQP_SASL_METHOD_EXTERNAL; 
+  
   log_template_options_init(&self->template_options, cfg);
 
   msg_verbose("Initializing AMQP destination",
@@ -607,6 +631,9 @@ afamqp_dd_free(LogPipe *d)
   g_free(self->host);
   g_free(self->vhost);
   g_free(self->entries);
+  g_free(self->ssl_ca_cert_path);
+  g_free(self->ssl_client_key_path);
+  g_free(self->ssl_client_cert_path);
   value_pairs_unref(self->vp);
 
   log_threaded_dest_driver_free(d);
