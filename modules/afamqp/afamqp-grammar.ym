@@ -57,10 +57,11 @@
 %token KW_BODY
 %token KW_PASSWORD
 %token KW_USERNAME
-%token KW_SSL_CLIENT_CERT
-%token KW_SSL_CLIENT_KEY
-%token KW_SSL_CA_CERT
-%token KW_SSL_VERIFY
+%token KW_CLIENT_CERT
+%token KW_CLIENT_KEY
+%token KW_CA_CERT
+%token KW_VERIFY_HOSTNAME
+%token KW_VERIFY_PEER
 
 %%
 
@@ -81,10 +82,11 @@ afamqp_option
         : KW_HOST '(' string ')'		{ afamqp_dd_set_host(last_driver, $3); free($3); }
         | KW_PORT '(' LL_NUMBER ')'		{ afamqp_dd_set_port(last_driver, $3); }
         | KW_VHOST '(' string ')'		{ afamqp_dd_set_vhost(last_driver, $3); free($3); }
-    | KW_SSL_CLIENT_CERT '(' string ')' { afamqp_dd_set_ssl_client_cert(last_driver, $3); free($3); }
-    | KW_SSL_CLIENT_KEY '(' string ')'  { afamqp_dd_set_ssl_client_key(last_driver, $3); free($3); }
-        | KW_SSL_CA_CERT '(' string ')' { afamqp_dd_set_ssl_ca_cert(last_driver, $3); free($3); }
-        | KW_SSL_VERIFY '(' yesno ')'	{ afamqp_dd_set_ssl_verify(last_driver, $3); }
+        | KW_CLIENT_CERT '(' string ')' { afamqp_dd_set_client_cert(last_driver, $3); free($3); }
+        | KW_CLIENT_KEY '(' string ')'  { afamqp_dd_set_client_key(last_driver, $3); free($3); }
+        | KW_CA_CERT '(' string ')'     { afamqp_dd_set_ca_cert(last_driver, $3); free($3); }
+    | KW_VERIFY_HOSTNAME '(' yesno ')'	{ afamqp_dd_set_verify_hostname(last_driver, $3); }
+        | KW_VERIFY_PEER '(' yesno ')'  { afamqp_dd_set_verify_peer(last_driver, $3); }
 	| KW_EXCHANGE '(' string ')'		{ afamqp_dd_set_exchange(last_driver, $3); free($3); }
         | KW_EXCHANGE_DECLARE '(' yesno ')'	{ afamqp_dd_set_exchange_declare(last_driver, $3); }
 	| KW_EXCHANGE_TYPE '(' string ')'	{ afamqp_dd_set_exchange_type(last_driver, $3); free($3); }

@@ -41,11 +41,12 @@ static CfgLexerKeyword afamqp_keywords[] = {
   { "persistent",		KW_PERSISTENT },
   { "username",			KW_USERNAME },
   { "password",			KW_PASSWORD },
-  { "ssl_client_cert",  KW_SSL_CLIENT_CERT },
-  { "ssl_client_key",   KW_SSL_CLIENT_KEY },
-  { "ssl_ca_cert",      KW_SSL_CA_CERT },
-  { "ssl_verify",       KW_SSL_VERIFY },
-  { "log_fifo_size",		KW_LOG_FIFO_SIZE  },
+  { "client_cert",      KW_CLIENT_CERT },
+  { "client_key",       KW_CLIENT_KEY },
+  { "ca_cert",          KW_CA_CERT },
+  { "verify_hostname",      KW_VERIFY_HOSTNAME },
+  { "verify_peer",          KW_VERIFY_PEER },
+  { "log_fifo_size",        KW_LOG_FIFO_SIZE  },
   { "body",			KW_BODY },
   { NULL }
 };

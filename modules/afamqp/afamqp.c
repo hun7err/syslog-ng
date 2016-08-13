@@ -60,10 +60,12 @@ typedef struct
   gchar *user;
   gchar *password;
 
-  gchar *ssl_client_cert_path;
-  gchar *ssl_client_key_path;
-  gchar *ssl_ca_cert_path;
-  gboolean ssl_verify;
+  gchar *client_cert_path;
+  gchar *client_key_path;
+  gchar *ca_cert_path;
+  gboolean verify_hostname;
+  gboolean verify_peer;
+  
 
   LogTemplateOptions template_options;
   ValuePairs *vp;
@@ -98,38 +100,46 @@ afamqp_dd_set_password(LogDriver *d, const gchar *password)
 }
 
 void
-afamqp_dd_set_ssl_client_cert(LogDriver *d, const gchar *cert_path)
+afamqp_dd_set_client_cert(LogDriver *d, const gchar *cert_path)
 {
   AMQPDestDriver *self = (AMQPDestDriver *) d;
 
-  g_free(self->ssl_client_cert_path);
-  self->ssl_client_cert_path = g_strdup(cert_path);
+  g_free(self->client_cert_path);
+  self->client_cert_path = g_strdup(cert_path);
 }
 
 void
-afamqp_dd_set_ssl_client_key(LogDriver *d, const gchar *key_path)
+afamqp_dd_set_client_key(LogDriver *d, const gchar *key_path)
 {
   AMQPDestDriver *self = (AMQPDestDriver *) d;
 
-  g_free(self->ssl_client_key_path);
-  self->ssl_client_key_path = g_strdup(key_path);
+  g_free(self->client_key_path);
+  self->client_key_path = g_strdup(key_path);
 }
 
 void
-afamqp_dd_set_ssl_ca_cert(LogDriver *d, const gchar *cert_path)
+afamqp_dd_set_ca_cert(LogDriver *d, const gchar *cert_path)
 {
   AMQPDestDriver *self = (AMQPDestDriver *) d;
 
-  g_free(self->ssl_ca_cert_path);
-  self->ssl_ca_cert_path = g_strdup(cert_path);
+  g_free(self->ca_cert_path);
+  self->ca_cert_path = g_strdup(cert_path);
 }
 
 void
-afamqp_dd_set_ssl_verify(LogDriver *d, gboolean verify)
+afamqp_dd_set_verify_hostname(LogDriver *d, gboolean verify)
 {
   AMQPDestDriver *self = (AMQPDestDriver *) d;
 
-  self->ssl_verify = verify;
+  self->verify_hostname = verify;
+}
+
+void
+afamqp_dd_set_verify_peer(LogDriver *d, gboolean verify)
+{
+  AMQPDestDriver *self = (AMQPDestDriver *) d;
+
+  self->verify_peer = verify;
 }
 
 void
@@ -397,14 +407,12 @@ afamqp_dd_connect(AMQPDestDriver *self, gboolean reconnect)
   else
     {
       self->sockfd = amqp_ssl_socket_new(self->conn);
-      amqp_ssl_socket_set_cacert(self->sockfd, self->ssl_ca_cert_path);
+      amqp_ssl_socket_set_cacert(self->sockfd, self->ca_cert_path);
       amqp_ssl_socket_set_key(self->sockfd,
-                              self->ssl_client_cert_path,
-                              self->ssl_client_key_path);
-      amqp_ssl_socket_set_verify_peer(self->sockfd, self->ssl_verify);
-      amqp_ssl_socket_set_verify_hostname(self->sockfd, self->ssl_verify);
-      // TODO: change to verify_peer and verify_hostname
-      // TODO: change ssl-verify and stuff to pure verify-peer() etc.
+                              self->client_cert_path,
+                              self->client_key_path);
+      amqp_ssl_socket_set_verify_peer(self->sockfd, self->verify_peer);
+      amqp_ssl_socket_set_verify_hostname(self->sockfd, self->verify_hostname);
     }
 
   sockfd_ret = amqp_socket_open_noblock(self->sockfd, self->host, self->port, &delay);
@@ -419,7 +427,6 @@ afamqp_dd_connect(AMQPDestDriver *self, gboolean reconnect)
       goto exception_amqp_dd_connect_failed_init;
     }
 
-  printf("AUTH_METHOD = %d\n", (int)self->auth_method);
   ret = amqp_login(self->conn, self->vhost, 0, 131072, 0,
                    self->auth_method, self->user, self->password);
   if (!afamqp_is_ok(self, "Error during AMQP login", ret))
@@ -598,7 +605,7 @@ afamqp_dd_init(LogPipe *s)
       return FALSE;
     }
   
-  if (!self->ssl_ca_cert_path || !self->ssl_client_key_path || !self->ssl_client_cert_path)
+  if (!self->ca_cert_path || !self->client_key_path || !self->client_cert_path)
     self->auth_method = AMQP_SASL_METHOD_PLAIN;
   else
     self->auth_method = AMQP_SASL_METHOD_EXTERNAL; 
@@ -631,9 +638,9 @@ afamqp_dd_free(LogPipe *d)
   g_free(self->host);
   g_free(self->vhost);
   g_free(self->entries);
-  g_free(self->ssl_ca_cert_path);
-  g_free(self->ssl_client_key_path);
-  g_free(self->ssl_client_cert_path);
+  g_free(self->ca_cert_path);
+  g_free(self->client_key_path);
+  g_free(self->client_cert_path);
   value_pairs_unref(self->vp);
 
   log_threaded_dest_driver_free(d);
@@ -671,6 +678,8 @@ afamqp_dd_new(GlobalConfig *cfg)
   afamqp_dd_set_routing_key((LogDriver *) self, "");
   afamqp_dd_set_persistent((LogDriver *) self, TRUE);
   afamqp_dd_set_exchange_declare((LogDriver *) self, FALSE);
+  afamqp_dd_set_verify_hostname((LogDriver *) self, TRUE);
+  afamqp_dd_set_verify_peer((LogDriver *) self, TRUE);
 
   self->max_entries = 256;
   self->entries = g_new(amqp_table_entry_t, self->max_entries);
