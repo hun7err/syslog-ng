@@ -598,17 +598,20 @@ afamqp_dd_init(LogPipe *s)
   if (!log_dest_driver_init_method(s))
     return FALSE;
 
-  if (self->auth_method == AMQP_SASL_METHOD_PLAIN && (!self->user || !self->password))
+  if (!self->ca_cert_path || !self->client_key_path || !self->client_cert_path)
+    self->auth_method = AMQP_SASL_METHOD_PLAIN;
+  else {
+    self->auth_method = AMQP_SASL_METHOD_EXTERNAL; 
+    afamqp_dd_set_user((LogDriver *) s, "placeholder");
+    afamqp_dd_set_password((LogDriver *) s, "placeholder");
+  }
+
+  if (!self->user || !self->password)
     {
       msg_error("Error initializing AMQP destination: username and password MUST be set if you are not using certificates!",
                 evt_tag_str("driver", self->super.super.super.id));
       return FALSE;
     }
-  
-  if (!self->ca_cert_path || !self->client_key_path || !self->client_cert_path)
-    self->auth_method = AMQP_SASL_METHOD_PLAIN;
-  else
-    self->auth_method = AMQP_SASL_METHOD_EXTERNAL; 
   
   log_template_options_init(&self->template_options, cfg);
 
